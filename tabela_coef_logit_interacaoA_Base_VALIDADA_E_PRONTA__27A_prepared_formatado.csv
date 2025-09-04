@@ -1,0 +1,5 @@
+variavel;coef;se;t_z;pvalue
+Intercept;0,5754;0,1810;3,1796;0,0015
+Gestao_Index_c;0,2590;1,2026;0,2153;0,8295
+delta_abstencao_pp_c;0,0524;0,0382;1,3713;0,1703
+Gestao_Index_c:delta_abstencao_pp_c;-0,1749;0,2385;-0,7332;0,4634

@@ -17,13 +17,12 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
-# =====================================
-# CONFIGURAÇÃO DE NOMES (sem detecção)
-# =====================================
 CONFIG_COLS = {
     # Insumos 27A (na base original)
     "ABST_2016": None,     # se quiser forçar, informe o nome exato aqui; caso None, usaremos padrões leves só no 27A
@@ -74,162 +73,58 @@ def _to_num(x):
 def _center(x):
     x = pd.to_numeric(x, errors='coerce')
     mu = float(np.nanmean(x))
-    return x - mu, mu
+    return x - mu
 
-def _bin_map(series):
-    s = series.astype(str).str.strip().str.lower()
-    out = pd.Series(index=series.index, dtype='float64')
-    out.loc[s.isin(['sim','sí','si'])] = 1.0
-    out.loc[s.isin(['não','nao','no'])] = 0.0
-    rest = out.isna()
-    out.loc[rest] = pd.to_numeric(series[rest], errors='coerce')
-    return out
-
-# =================================================================================
-# 27A — Preparação (mantém padrões leves só aqui para achar colunas básicas se None)
-# =================================================================================
-def _find_col(df, patterns):
-    for pat in patterns:
-        for c in df.columns:
-            if re.search(pat, str(c), flags=re.IGNORECASE):
-                return c
+def _find_col(df, candidates_regex):
+    for pat in candidates_regex:
+        cols = [c for c in df.columns if re.search(pat, c, flags=re.I)]
+        if cols:
+            return cols[0]
     return None
 
-def _find_nec_cols(df):
-    pat16 = r'(NEC|efetiv[oa]|n[úu]mero efetivo).*2016|2016.*(NEC|efetiv[oa])|candidat[oa]s?.*efetiv[oa].*2016'
-    pat20 = r'(NEC|efetiv[oa]|n[úu]mero efetivo).*2020|2020.*(NEC|efetiv[oa])|candidat[oa]s?.*efetiv[oa].*2020'
-    c16 = CONFIG_COLS["NEC_2016"] if CONFIG_COLS["NEC_2016"] in df.columns else _find_col(df, [pat16])
-    c20 = CONFIG_COLS["NEC_2020"] if CONFIG_COLS["NEC_2020"] in df.columns else _find_col(df, [pat20])
-    return c16, c20
-
-def _compute_gestao_index(df):
-    """Índice de Gestão (0-1) baseado em componentes disponíveis, média simples."""
-    pats_bin = {
-        "hosp_camp": r'hospital.*campanh',
-        "tenda": r'tenda.*triag',
-        "testes": r'teste[s]?.*exist[êe]n',
-        "leitos_amp": r'leitos.*ampl',
-        "samu_pub": r'servi[cç]o.*atendimento.*emerg',
-        "vig_epi": r'vigilan[cç]a.*epidemiol',
-    }
-    pats_norm = {
-        "mask_norm": r'm[áa]scara.*\(normalizad',
-        "rest_norm": r'restri[cç][aã]o.*com[ée]rcio.*\(normalizad',
-    }
-    comp_list = []
-    for key, pat in pats_bin.items():
-        col = _find_col(df, [pat])
-        if col is not None:
-            comp_list.append(_bin_map(df[col]).rename(key))
-    for key, pat in pats_norm.items():
-        col = _find_col(df, [pat])
-        if col is not None:
-            comp = _to_num(df[col]).clip(0.0, 1.0)
-            comp_list.append(comp.rename(key))
-    if not comp_list:
-        return pd.Series(np.nan, index=df.index, name='Gestao_Index')
-    comp_df = pd.concat(comp_list, axis=1)
-    gest = comp_df.mean(axis=1, skipna=True)
-    gest.name = 'Gestao_Index'
-    return gest
-
-def run_27A_preparacao(base_csv_path="Base_VALIDADA_E_PRONTA.csv", encoding="latin-1", sep=";"):
-    df = pd.read_csv(base_csv_path, encoding=encoding, sep=sep)
-    df = df.loc[:, ~df.columns.str.startswith('Unnamed:')].copy()
-    df.columns = df.columns.str.strip()
-
-    # Colunas base (usar CONFIG quando definido; senão, padrões leves)
-    col_abs16 = CONFIG_COLS["ABST_2016"] if CONFIG_COLS["ABST_2016"] in (df.columns) else _find_col(df, [r'\bAbsten(ç|c)[aã]o\s*2016\b', r'\babsten.*2016'])
-    col_abs20 = CONFIG_COLS["ABST_2020"] if CONFIG_COLS["ABST_2020"] in (df.columns) else _find_col(df, [r'\bAbsten(ç|c)[aã]o\s*2020\b', r'\babsten.*2020'])
-    col_ele16 = CONFIG_COLS["ELEIT_2016"] if CONFIG_COLS["ELEIT_2016"] in (df.columns) else _find_col(df, [r'\bEleitor(es)?\s*2016\b', r'\beleitor.*2016'])
-    col_ele20 = CONFIG_COLS["ELEIT_2020"] if CONFIG_COLS["ELEIT_2020"] in (df.columns) else _find_col(df, [r'\bEleitor(es)?\s*2020\b', r'\beleitor.*2020'])
-    col_vant2016 = CONFIG_COLS["VANT_2016"] if CONFIG_COLS["VANT_2016"] in (df.columns) else _find_col(df, [r'\bVantagem.*2016\b', r'\bVantagem2016\b'])
-
-    if any(c is None for c in [col_abs16,col_abs20,col_ele16,col_ele20,col_vant2016]):
-        raise RuntimeError("27A: coluna obrigatória não encontrada (abstenção/eleitores/vantagem2016).")
-
-    for c in [col_abs16,col_abs20,col_ele16,col_ele20,col_vant2016]:
-        df[c] = _to_num(df[c])
-
-    df['tx_abstencao_2016'] = df[col_abs16] / df[col_ele16]
-    df['tx_abstencao_2020'] = df[col_abs20] / df[col_ele20]
-    df['delta_abstencao_pp'] = (df['tx_abstencao_2020'] - df['tx_abstencao_2016']) * 100.0
-
-    # NEC
-    col_nec16, col_nec20 = _find_nec_cols(df)
-    if (col_nec16 is None) or (col_nec20 is None):
-        raise RuntimeError("27A: NEC_2016/NEC_2020 não encontradas.")
-    nec16 = _to_num(df[col_nec16]).mask(lambda x: x<=0, np.nan)
-    nec20 = _to_num(df[col_nec20]).mask(lambda x: x<=0, np.nan)
-    df['NEC_2016_calc'] = nec16
-    df['NEC_2020_calc'] = nec20
-    df['delta_competicao_diff'] = nec20 - nec16
-    with np.errstate(divide='ignore', invalid='ignore'):
-        df['delta_competicao_log'] = np.log(nec20 / nec16)
-
-    # Índice de Gestão
-    df['Gestao_Index'] = _compute_gestao_index(df)
-    df['Gestao_Index_c'], _ = _center(df['Gestao_Index'])
-
-    # Centragem moderadoras e vantagem
-    df['delta_abstencao_pp_c'], _ = _center(df['delta_abstencao_pp'])
-    df['delta_competicao_diff_c'], _ = _center(df['delta_competicao_diff'])
-    df['delta_competicao_log_c'], _ = _center(df['delta_competicao_log'])
-    df['vantagem2016_c'], _ = _center(df[col_vant2016])
-
-    # UF e Populacao
-    if CONFIG_COLS["UF"] in df.columns:
-        df['UF'] = df[CONFIG_COLS["UF"]]
-    elif 'Estado' in df.columns:
-        df['UF'] = df['Estado']
-    if CONFIG_COLS["POP"] in df.columns:
-        df['Populacao'] = _to_num(df[CONFIG_COLS["POP"]])
-    else:
-        col_pop = _find_col(df, [r'Popula(ç|c)[aã]o'])
-        if col_pop: df['Populacao'] = _to_num(df[col_pop])
-
-    # Reeleito/DeltaVantagem (garante nomes “oficiais” se existirem)
-    if 'VD1_Reeleito' not in df.columns:
-        col_r = _find_col(df, [r'\bVD1_Reeleito\b', r'\bReeleito\b'])
-        if col_r: df['VD1_Reeleito'] = df[col_r]
-    if 'VD2_DeltaVantagem' not in df.columns:
-        col_dv = _find_col(df, [r'\bVD2_DeltaVantagem\b', r'delta.*vantagem', r'varia(ç|c)[aã]o.*vantagem'])
-        if col_dv: df['VD2_DeltaVantagem'] = df[col_dv]
-
-    # Máscara mínima
-    need = ['delta_abstencao_pp', 'Gestao_Index', 'vantagem2016_c']
-    mask = np.ones(len(df), dtype=bool)
-    for c in need:
-        mask &= df[c].notna().values
-    df['mask_27A'] = mask
-
-    outdir, base = _outbase(base_csv_path)
-    out_csv = os.path.join(outdir, f"{base}__27A_prepared.csv")
-    df.to_csv(out_csv, index=False, encoding=encoding, sep=sep)
-
-    def _desc(name):
-        s = pd.to_numeric(df[name], errors='coerce')
-        return (name, int(s.notna().sum()),
-                float(np.nanmean(s)), float(np.nanstd(s, ddof=0)),
-                float(np.nanmin(s)), float(np.nanmax(s)))
-    resumo_vars = ['tx_abstencao_2016','tx_abstencao_2020','delta_abstencao_pp',
-                   'delta_competicao_diff','delta_competicao_log',
-                   'Gestao_Index','vantagem2016_c']
-    resumo_vars = [v for v in resumo_vars if v in df.columns]
-    resumo = [_desc(v) for v in resumo_vars]
-    log_path = os.path.join(outdir, f"relatorio_27A_{base}.txt")
-    with open(log_path, 'w', encoding='utf-8') as f:
-        f.write("27A — Proxies (ΔAbstenção; ΔNEC_diff; ΔNEC_log) + Gestao_Index (centrada)\n")
-        f.write(f"Arquivo de entrada: {base_csv_path}\nLinhas: {len(df)}\n\n")
-        f.write("Resumo (N, média, dp, min, máx):\n")
-        for (name,N,mean,std,minv,maxv) in resumo:
-            f.write(f" - {name}: N={N}, mean={mean:.6f}, std={std:.6f}, min={minv:.6f}, max={maxv:.6f}\n")
-        f.write(f"\nmask_27A TRUE: {int(df['mask_27A'].sum())} de {len(df)}\n")
-    _print_paths("27A", out_csv, {"Relatório": log_path})
-    return out_csv, log_path
+def _pause():
+    if os.name == "nt":
+        try:
+            os.system("pause")
+        except Exception:
+            pass
 
 # =================================================================================
-# Camada de robustez compatível + salvamento de tabelas
+# Extração “compatível” de séries do statsmodels
+# =================================================================================
+def _extract_series(res_like, res_ref=None):
+    """Extrai params/bse/t/pvalues de forma resiliente (HC/cluster quando disponível)."""
+    try:
+        params = pd.Series(res_like.params, index=res_like.params.index)
+        bse = pd.Series(res_like.bse, index=res_like.bse.index)
+        tvalues = pd.Series(res_like.tvalues, index=res_like.tvalues.index)
+        pvalues = pd.Series(res_like.pvalues, index=res_like.pvalues.index)
+        return {"params": params, "bse": bse, "tvalues": tvalues, "pvalues": pvalues}
+    except Exception:
+        if res_ref is None:
+            raise
+        return {
+            "params": pd.Series(res_ref.params, index=res_ref.params.index),
+            "bse": pd.Series(res_ref.bse, index=res_ref.bse.index),
+            "tvalues": pd.Series(res_ref.tvalues, index=res_ref.tvalues.index),
+            "pvalues": pd.Series(res_ref.pvalues, index=res_ref.pvalues.index)
+        }
+
+def _save_coef_table(res_like, res_ref, path_csv):
+    ext = _extract_series(res_like, res_ref)
+    rows = []
+    for name in ext["params"].index:
+        rows.append({
+            "variavel": name,
+            "coef": float(ext["params"].loc[name]),
+            "se": float(ext["bse"].loc[name]),
+            "t_z": float(ext["tvalues"].loc[name]),
+            "pvalue": float(ext["pvalues"].loc[name]),
+        })
+    pd.DataFrame(rows).to_csv(path_csv, index=False, encoding="utf-8")
+
+# =================================================================================
+# ROBUSTEZ: cluster/HC compatível
 # =================================================================================
 def _robust_like(res, cov_type="HC1", groups=None):
     """
@@ -252,32 +147,106 @@ def _robust_like(res, cov_type="HC1", groups=None):
         except Exception:
             return res
 
-def _extract_series(res_like, res_ref):
-    # Garante pandas.Series com o mesmo index dos params "normais"
-    idx = res_ref.params.index if hasattr(res_ref.params, 'index') else pd.Index(range(len(res_ref.params)))
-    def to_series(x):
-        x = np.asarray(x).reshape(-1)
-        return pd.Series(x, index=idx)
-    out = {
-        "params":  to_series(getattr(res_like, 'params',  res_ref.params)),
-        "bse":     to_series(getattr(res_like, 'bse',     res_ref.bse)),
-        "tvalues": to_series(getattr(res_like, 'tvalues', res_ref.tvalues)),
-        "pvalues": to_series(getattr(res_like, 'pvalues', res_ref.pvalues)),
-    }
-    return out
+# =================================================================================
+# Predições para 27B/27C
+# =================================================================================
+def _logit_predict_grid(dfm, model_res, gestao_col, delta_col, outdir, base):
+    g_levels = [("Gestão baixa", float(np.nanpercentile(dfm[gestao_col], 25))),
+                ("Gestão média", float(np.nanpercentile(dfm[gestao_col], 50))),
+                ("Gestão alta",  float(np.nanpercentile(dfm[gestao_col], 75)))]
+    x = np.linspace(float(np.nanmin(dfm[delta_col])), float(np.nanmax(dfm[delta_col])), 121)
 
-def _save_coef_table(res_like, res_ref, path_csv):
-    ext = _extract_series(res_like, res_ref)
-    rows = []
-    for name in ext["params"].index:
-        rows.append({
-            "variavel": name,
-            "coef": float(ext["params"].loc[name]),
-            "se": float(ext["bse"].loc[name]),
-            "t_z": float(ext["tvalues"].loc[name]),
-            "pvalue": float(ext["pvalues"].loc[name]),
-        })
-    pd.DataFrame(rows).to_csv(path_csv, index=False, encoding="utf-8")
+    design_cols = model_res.model.exog_names
+    base_vals = {}
+    for col in design_cols:
+        if col == "Intercept": continue
+        if col in dfm.columns:
+            base_vals[col] = float(np.nanmean(dfm[col]))
+
+    preds = []
+    for label, gval in g_levels:
+        for xv in x:
+            row = base_vals.copy()
+            row[gestao_col] = gval
+            row[delta_col] = xv
+            inter_name = f"{gestao_col}:{delta_col}"
+            if inter_name in design_cols:
+                row[inter_name] = gval * xv
+            pr = sm.Logit(dfm["Reeleito"], sm.add_constant(pd.DataFrame([row])[design_cols])).fit(disp=0, maxiter=100).predict()[0]
+            preds.append({"ΔAbstenção_c": xv, "Prob.Reeleição": pr, "Gestão": label})
+
+    pred_df = pd.DataFrame(preds)
+    fig_path = os.path.join(outdir, f"fig_27B_predprob_interacaoA_{base}.png")
+    _plot_lines(pred_df, x="ΔAbstenção_c", y="Prob.Reeleição", hue="Gestão",
+                title="Predição de Probabilidade — Logit (Gestão×ΔAbstenção)", path_png=fig_path)
+    return pred_df, fig_path
+
+# =================================================================================
+# 27A — Preparo
+# =================================================================================
+def run_27A_preparacao(base_csv_path="Base_VALIDADA_E_PRONTA.csv", encoding="latin-1", sep=";"):
+    df = pd.read_csv(base_csv_path, encoding=encoding, sep=sep)
+    df = df.loc[:, ~df.columns.str.startswith('Unnamed:')].copy()
+    df.columns = df.columns.str.strip()
+
+    # Colunas base (usar CONFIG quando definido; senão, padrões leves)
+    col_abs16 = CONFIG_COLS["ABST_2016"] if CONFIG_COLS["ABST_2016"] else _find_col(df, [r'\bAbsten(ç|c)[aã]o\s*2016\b', r'\babsten.*2016'])
+    col_abs20 = CONFIG_COLS["ABST_2020"] if CONFIG_COLS["ABST_2020"] else _find_col(df, [r'\bAbsten(ç|c)[aã]o\s*2020\b', r'\babsten.*2020'])
+    col_ele16 = CONFIG_COLS["ELEIT_2016"] if CONFIG_COLS["ELEIT_2016"] else _find_col(df, [r'\bEleitor(es)?\s*2016\b', r'\beleitor.*2016'])
+    col_ele20 = CONFIG_COLS["ELEIT_2020"] if CONFIG_COLS["ELEIT_2020"] else _find_col(df, [r'\bEleitor(es)?\s*2020\b', r'\beleitor.*2020'])
+    col_vant2016 = CONFIG_COLS["VANT_2016"] if CONFIG_COLS["VANT_2016"] else _find_col(df, [r'\bVantagem.*2016\b', r'\bVantagem2016\b'])
+
+    if any(c is None for c in [col_abs16,col_abs20,col_ele16,col_ele20,col_vant2016]):
+        raise RuntimeError("27A: coluna obrigatória não encontrada (abstenção/eleitores/vantagem2016).")
+
+    # Limpeza numérica
+    for c in [col_abs16,col_abs20,col_ele16,col_ele20,col_vant2016]:
+        df[c] = _to_num(df[c])
+
+    # Δ Abstenção em p.p. e centragem
+    taxa_abs16 = df[col_abs16] / df[col_ele16] * 100.0
+    taxa_abs20 = df[col_abs20] / df[col_ele20] * 100.0
+    df["delta_abstencao_pp"] = taxa_abs20 - taxa_abs16
+    df["delta_abstencao_pp_c"] = _center(df["delta_abstencao_pp"])
+
+    # Δ competição (NEC): log e diff, + centragem
+    nec16 = _to_num(df[CONFIG_COLS["NEC_2016"]]) if CONFIG_COLS["NEC_2016"] in df.columns else None
+    nec20 = _to_num(df[CONFIG_COLS["NEC_2020"]]) if CONFIG_COLS["NEC_2020"] in df.columns else None
+    if nec16 is not None and nec20 is not None:
+        df["delta_competicao_diff"] = nec20 - nec16
+        with np.errstate(divide='ignore', invalid='ignore'):
+            df["delta_competicao_log"] = np.log(nec20.replace(0, np.nan)) - np.log(nec16.replace(0, np.nan))
+        df["delta_competicao_diff_c"] = _center(df["delta_competicao_diff"])
+        df["delta_competicao_log_c"]  = _center(df["delta_competicao_log"])
+
+    # Gestão index (placeholder: se já existir, usa; senão, z-score de colunas 'Gestao_*' se houver)
+    gest_cols = [c for c in df.columns if re.search(r'^Gest[aã]o', c, flags=re.I)]
+    if "Gestao_Index" in df.columns:
+        df["Gestao_Index_c"] = _center(_to_num(df["Gestao_Index"]))
+    elif gest_cols:
+        z = (_to_num(df[gest_cols]).apply(pd.to_numeric, errors='coerce') - _to_num(df[gest_cols]).mean()) / _to_num(df[gest_cols]).std(ddof=0)
+        df["Gestao_Index_c"] = _center(z.mean(axis=1))
+    else:
+        df["Gestao_Index_c"] = np.nan  # se não existir, fica vazio
+
+    # VD1/VD2 (placeholder: se já existir, respeita)
+    if CONFIG_COLS["REELEITO"] not in df.columns:
+        df["VD1_Reeleito"] = np.nan
+    if CONFIG_COLS["DELTA_VANT"] not in df.columns:
+        df["VD2_DeltaVantagem"] = np.nan
+
+    # UF/Pop (normalização leve)
+    if CONFIG_COLS["UF"] not in df.columns:
+        if "Estado" in df.columns: df["UF"] = df["Estado"]
+    if "Populacao" not in df.columns:
+        if CONFIG_COLS["POP"] in df.columns:
+            df["Populacao"] = _to_num(df[CONFIG_COLS["POP"]])
+
+    outdir, base = _outbase(base_csv_path)
+    out_csv = os.path.join(outdir, f"{base}__27A_prepared.csv")
+    df.to_csv(out_csv, index=False, sep=";", encoding="utf-8")
+    _print_paths("27A", out_csv, extra={"N": df.shape[0]})
+    return out_csv
 
 # =================================================================================
 # 27B — Logit (Gestão × Δ Abstenção) — NOMES FIXOS
@@ -288,13 +257,12 @@ def run_27B_interacaoA(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv",
     df = df.loc[:, ~df.columns.str.startswith('Unnamed:')].copy()
     df.columns = df.columns.str.strip()
 
-    gestao_col = C["GESTAO_C"]
-    reeleito_col = C["REELEITO"] if C["REELEITO"] in df.columns else "Reeleito"
-    delta_abst_c = C["DELTA_ABST_C"]
-
-    for need in [gestao_col, reeleito_col, delta_abst_c]:
-        if need not in df.columns:
-            raise RuntimeError(f"27B: coluna necessária ausente: {need}")
+    # Colunas
+    reeleito_col = C["REELEITO"] if C["REELEITO"] in df.columns else _find_col(df, [r'\bReeleit'])
+    gestao_col = C["GESTAO_C"] if C["GESTAO_C"] in df.columns else "Gestao_Index_c"
+    delta_abst_c = C["DELTA_ABST_C"] if C["DELTA_ABST_C"] in df.columns else "delta_abstencao_pp_c"
+    if any(c not in df.columns for c in [reeleito_col, gestao_col, delta_abst_c]):
+        raise RuntimeError("27B: colunas necessárias ausentes; rode 27A.")
 
     dfm = df[[gestao_col, delta_abst_c, reeleito_col]].dropna().copy()
     dfm.rename(columns={reeleito_col: 'Reeleito'}, inplace=True)
@@ -317,47 +285,13 @@ def run_27B_interacaoA(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv",
     ame_df.to_csv(ame_csv, index=True, encoding='utf-8')
 
     # Figura — linhas de predição
-    pred_df = _logit_predict_grid(dfm=dfm, model_res=res, gestao_col=gestao_col, delta_col=delta_abst_c, n=121)
-    fig_png = os.path.join(outdir, f"fig_27B_predprob_interacaoA_{base}.png")
-    _plot_lines(pred_df, x="delta", y="pr", hue="gestao_label",
-                title="Reeleição: Gestão × Δ Abstenção (prob. predita)", path_png=fig_png)
-
-    _print_paths("27B", coef_csv, {"AMEs": ame_csv, "Figura": fig_png})
-    return coef_csv, ame_csv, fig_png
-
-def _logit_predict_grid(dfm, model_res, gestao_col, delta_col, n=121):
-    mu_g = float(np.nanmean(dfm[gestao_col]))
-    sd_g = float(np.nanstd(dfm[gestao_col]))
-    g_levels = [("Gestão -1dp", mu_g - sd_g), ("Gestão média", mu_g), ("Gestão +1dp", mu_g + sd_g)]
-    x = np.linspace(float(np.nanmin(dfm[delta_col])), float(np.nanmax(dfm[delta_col])), n)
-
-    design_cols = model_res.model.exog_names
-    base_vals = {}
-    for col in design_cols:
-        if col == "Intercept": continue
-        if col in dfm.columns:
-            base_vals[col] = float(np.nanmean(dfm[col]))
-
-    preds = []
-    for label, gval in g_levels:
-        for xv in x:
-            row = base_vals.copy()
-            row[gestao_col] = gval
-            row[delta_col] = xv
-            inter_name = f"{gestao_col}:{delta_col}"
-            if inter_name in design_cols:
-                row[inter_name] = gval * xv
-            ex = [1.0]
-            for col in design_cols:
-                if col == "Intercept": continue
-                ex.append(row.get(col, base_vals.get(col, 0.0)))
-            lin = np.dot(np.array(ex), model_res.params.values)
-            pr = 1.0/(1.0+np.exp(-lin))
-            preds.append({"delta": xv, "gestao_label": label, "pr": pr})
-    return pd.DataFrame(preds)
+    pred_df, fig_path = _logit_predict_grid(dfm=dfm, model_res=res, gestao_col=gestao_col,
+                                            delta_col=delta_abst_c, outdir=outdir, base=base)
+    _print_paths("27B", coef_csv, extra={"AMEs": ame_csv, "FIG": fig_path})
+    return coef_csv
 
 # =================================================================================
-# 27C — OLS (Vantagem2016 × ΔNEC_log) — NOMES FIXOS
+# 27C — OLS (ΔVantagem ~ Vantagem2016 × ΔCompetição) — NOMES FIXOS
 # =================================================================================
 def run_27C_interacaoB(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv", encoding="latin-1", sep=";"):
     C = CONFIG_COLS
@@ -366,17 +300,18 @@ def run_27C_interacaoB(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv",
     df.columns = df.columns.str.strip()
 
     dv_col = C["DELTA_VANT"]
-    comp_col = C["COMP_LOG_C"] if (C["COMP_LOG_C"] in df.columns and df[C["COMP_LOG_C"]].notna().any()) \
-                               else C["COMP_DIFF_C"]
-    vant_c = 'vantagem2016_c'
-    for need in [dv_col, comp_col, vant_c]:
-        if need not in df.columns:
-            raise RuntimeError(f"27C: coluna necessária ausente: {need}")
+    comp_log_c = C["COMP_LOG_C"] if C["COMP_LOG_C"] in df.columns else None
+    comp_diff_c = C["COMP_DIFF_C"] if C["COMP_DIFF_C"] in df.columns else None
+    if dv_col not in df.columns or ('vantagem2016_c' not in df.columns) or ((comp_log_c is None) and (comp_diff_c is None)):
+        raise RuntimeError("27C: colunas necessárias ausentes; rode 27A.")
 
-    dff = df[[dv_col, vant_c, comp_col]].dropna().copy()
+    # Escolha preferencial: log; se não houver, diff
+    comp_col = comp_log_c if comp_log_c is not None else comp_diff_c
+
+    dff = df[[dv_col, 'vantagem2016_c', comp_col, CONFIG_COLS["UF"]] if CONFIG_COLS["UF"] in df.columns else [dv_col, 'vantagem2016_c', comp_col]].dropna().copy()
     dff.rename(columns={dv_col: 'DeltaVantagem'}, inplace=True)
 
-    res = smf.ols(f"DeltaVantagem ~ {vant_c} * {comp_col}", data=dff).fit()
+    res = smf.ols(f"DeltaVantagem ~ vantagem2016_c * {comp_col}", data=dff).fit()
 
     # cluster por UF se existir; senão HC1; senão simples
     if CONFIG_COLS["UF"] in df.columns and df[CONFIG_COLS["UF"]].notna().any():
@@ -389,7 +324,7 @@ def run_27C_interacaoB(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv",
     _save_coef_table(res_rb, res, coef_csv)
 
     # Figura — linhas de predição por níveis de vantagem
-    mu_v = float(np.nanmean(dff[vant_c])); sd_v = float(np.nanstd(dff[vant_c]))
+    mu_v = float(np.nanmean(dff['vantagem2016_c'])); sd_v = float(np.nanstd(dff['vantagem2016_c']))
     v_levels = [("Vantagem -1dp", mu_v - sd_v), ("Vantagem média", mu_v), ("Vantagem +1dp", mu_v + sd_v)]
     x = np.linspace(float(np.nanmin(dff[comp_col])), float(np.nanmax(dff[comp_col])), 121)
 
@@ -399,36 +334,36 @@ def run_27C_interacaoB(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv",
     for label, vval in v_levels:
         for xv in x:
             row = base_vals.copy()
-            row[vant_c] = vval
+            row['vantagem2016_c'] = vval
             row[comp_col] = xv
-            inter_name = f"{vant_c}:{comp_col}"
+            inter_name = f"vantagem2016_c:{comp_col}"
             if inter_name in design_cols:
                 row[inter_name] = vval * xv
-            ex = [1.0]
-            for col in design_cols:
-                if col == "Intercept": continue
-                ex.append(row.get(col, base_vals.get(col, 0.0)))
-            yhat = np.dot(np.array(ex), res.params.values)
-            preds.append({"comp": xv, "vant_label": label, "yhat": yhat})
+            yhat = sm.OLS(dff['DeltaVantagem'], sm.add_constant(pd.DataFrame([row])[design_cols])).fit().predict()[0]
+            preds.append({"ΔCompetição_c": xv, "ΔVantagem (pred.)": yhat, "Vantagem2016": label})
+
     pred_df = pd.DataFrame(preds)
-    fig_png = os.path.join(outdir, f"fig_27C_pred_interacaoB_{base}.png")
-    _plot_lines(pred_df, x="comp", y="yhat", hue="vant_label",
-                title=f"ΔVantagem ~ {vant_c} × {comp_col} (linha de predição)", path_png=fig_png)
+    fig_path = os.path.join(outdir, f"fig_27C_pred_interacaoB_{base}.png")
+    _plot_lines(pred_df, x="ΔCompetição_c", y="ΔVantagem (pred.)", hue="Vantagem2016",
+                title="Predição — OLS (Vantagem2016×ΔCompetição)", path_png=fig_path)
 
-    _print_paths("27C", coef_csv, {"Figura": fig_png})
-    return coef_csv, fig_png
+    _print_paths("27C", coef_csv, extra={"FIG": fig_path, "comp_col": comp_col})
+    return coef_csv
 
 # =================================================================================
-# 27D — Sensibilidade — NOMES FIXOS
+# 27D — Sensibilidade (log/diff; Top-5; HC1/cluster) — NOMES FIXOS
 # =================================================================================
-def _top5_por_uf(df, uf_col, pop_col):
-    if (uf_col not in df.columns) or (pop_col not in df.columns):
-        return None
-    dfx = df[[uf_col, pop_col]].copy()
-    dfx[pop_col] = _to_num(dfx[pop_col])
-    df['_rank_pop_uf'] = dfx.groupby(uf_col)[pop_col].rank(ascending=False, method='first')
-    top5 = df[df['_rank_pop_uf'] <= 5].copy()
-    top5.drop(columns=['_rank_pop_uf'], inplace=True)
+def _top5_por_uf(df, uf_col, pop_col="Populacao", k=5):
+    if uf_col not in df.columns:
+        return df
+    df2 = df.copy()
+    if pop_col not in df2.columns and "População" in df2.columns:
+        df2["Populacao"] = _to_num(df2["População"])
+    if pop_col not in df2.columns:
+        return df2
+    df2["rank_pop_uf"] = df2.groupby(uf_col)[pop_col].rank(ascending=False, method="first")
+    top5 = df2[df2["rank_pop_uf"] <= k].copy()
+    top5.drop(columns=['rank_pop_uf'], inplace=True)
     return top5
 
 def run_27D_sensibilidade(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv", encoding="latin-1", sep=";"):
@@ -447,17 +382,16 @@ def run_27D_sensibilidade(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.cs
     rows = []
 
     def _fit_ols(dfin, label, comp_col, cov_type="HC1", groups=None):
-        dfx = dfin[[dv_col, 'vantagem2016_c', comp_col]].dropna().copy()
-        dfx.rename(columns={dv_col: 'DeltaVantagem'}, inplace=True)
-        res = smf.ols(f"DeltaVantagem ~ vantagem2016_c * {comp_col}", data=dfx).fit()
-        res_rb = _robust_like(res, cov_type=("cluster" if (cov_type=="cluster" and groups is not None) else "HC1"), groups=groups)
-        # extrair interação de forma consistente
-        inter = f"vantagem2016_c:{comp_col}"
+        dff = dfin[[dv_col, 'vantagem2016_c', comp_col] + ([C["UF"]] if C["UF"] in dfin.columns else [])].dropna().copy()
+        dff.rename(columns={dv_col: 'DeltaVantagem'}, inplace=True)
+        res = smf.ols(f"DeltaVantagem ~ vantagem2016_c * {comp_col}", data=dff).fit()
+        res_rb = _robust_like(res, cov_type=cov_type, groups=groups)
         ext = _extract_series(res_rb, res)
+        inter = f"vantagem2016_c:{comp_col}"
         coef = ext["params"].reindex_like(ext["params"]).get(inter, np.nan)
         se   = ext["bse"].reindex_like(ext["bse"]).get(inter, np.nan)
         p    = ext["pvalues"].reindex_like(ext["pvalues"]).get(inter, np.nan)
-        rows.append({"modelo": label, "comp_col": comp_col, "N": int(dfx.shape[0]),
+        rows.append({"modelo": label, "comp_col": comp_col, "N": int(dff.shape[0]),
                      "coef_interacao": float(coef) if pd.notna(coef) else np.nan,
                      "se": float(se) if pd.notna(se) else np.nan,
                      "pvalue": float(p) if pd.notna(p) else np.nan})
@@ -472,9 +406,9 @@ def run_27D_sensibilidade(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.cs
             _fit_ols(df, "FULL_diff_clusterUF", comp_diff_c, cov_type="cluster", groups=df[CONFIG_COLS["UF"]])
         _fit_ols(df, "FULL_diff_HC1", comp_diff_c, cov_type="HC1")
 
-    # TOP-5 por UF (se possível)
-    top5 = _top5_por_uf(df.copy(), CONFIG_COLS["UF"], 'Populacao' if 'Populacao' in df.columns else CONFIG_COLS["POP"])
-    if top5 is not None:
+    # TOP5 por UF
+    top5 = _top5_por_uf(df, uf_col=CONFIG_COLS["UF"])
+    if top5.shape[0] >= 50:
         if comp_log_c is not None:
             if CONFIG_COLS["UF"] in top5.columns and top5[CONFIG_COLS["UF"]].notna().any():
                 _fit_ols(top5, "TOP5_log_clusterUF", comp_log_c, cov_type="cluster", groups=top5[CONFIG_COLS["UF"]])
@@ -502,18 +436,241 @@ def _plot_lines(df, x, y, hue, title, path_png):
     plt.xlabel(x); plt.ylabel(y)
     plt.legend(loc="best", frameon=False)
     plt.tight_layout()
-    plt.savefig(path_png, bbox_inches="tight")
+    plt.savefig(path_png, dpi=150)
     plt.close()
 
 # =================================================================================
-# CLI
+# 32 — Quadro 4.1 (síntese final 27B–27D)
 # =================================================================================
-def _pause():
+def _read_csv_safe(path):
     try:
-        input("\n----------------------------------------------------------\nExecução finalizada. Pressione Enter para sair...")
+        return pd.read_csv(path, encoding="utf-8")
+    except FileNotFoundError:
+        try:
+            return pd.read_csv(path, encoding="latin-1", sep=";")
+        except Exception:
+            return None
     except Exception:
-        pass
+        return None
 
+def _find_var_row(df, must_include):
+    """
+    Encontra a linha cujo campo 'variavel' contém todos os substrings de must_include (case-insensitive).
+    Retorna (coef, pvalue, name) ou (np.nan, np.nan, None) se não achar.
+    """
+    if df is None or "variavel" not in df.columns:
+        return np.nan, np.nan, None
+    var_series = df["variavel"].astype(str).str.lower()
+    mask = np.ones(len(var_series), dtype=bool)
+    for sub in must_include:
+        mask &= var_series.str.contains(str(sub).lower(), na=False)
+    idxs = np.where(mask)[0]
+    if len(idxs) == 0:
+        # tente com ':' normalizado (alguns SM usam 'x' em vez de ':')
+        var_series2 = var_series.str.replace('*', ':', regex=False).str.replace(' x ', ':', regex=False)
+        mask = np.ones(len(var_series2), dtype=bool)
+        for sub in must_include:
+            mask &= var_series2.str.contains(str(sub).lower(), na=False)
+        idxs = np.where(mask)[0]
+    if len(idxs) == 0:
+        return np.nan, np.nan, None
+    i = int(idxs[0])
+    row = df.iloc[i]
+    coef = pd.to_numeric(row.get("coef", np.nan), errors="coerce")
+    pval = pd.to_numeric(row.get("pvalue", np.nan), errors="coerce")
+    return coef, pval, str(row.get("variavel"))
+
+def _classif_sig(p):
+    try:
+        p = float(p)
+    except Exception:
+        return "n.s."
+    if np.isnan(p):
+        return "n.s."
+    if p < 0.01:
+        return "p<0,01"
+    if p < 0.05:
+        return "p<0,05"
+    if p < 0.10:
+        return "p<0,10"
+    return "n.s."
+
+def _sign_symbol(x, eps=1e-12):
+    if pd.isna(x):
+        return "0"
+    if x > eps:
+        return "+"
+    if x < -eps:
+        return "–"
+    return "0"
+
+def _robust_summary_27D(path_27d):
+    """
+    Lê a tabela 27D e produz um sumário compacto de robustez para a interação B.
+    Retorna dicionário com flags (HC1, clusterUF, TOP5, log, diff) baseados em p<0.10
+    e consistência de sinal.
+    """
+    out = {"HC1": None, "clusterUF": None, "TOP5": None, "log": None, "diff": None}
+    df = _read_csv_safe(path_27d)
+    if df is None or df.empty:
+        return out
+
+    def _ok(subdf):
+        # significante a 10% e sinal consistente dentro do subconjunto
+        if subdf.empty:
+            return None
+        sig = subdf["pvalue"].astype(float) < 0.10
+        if not sig.any():
+            return False
+        signs = np.sign(subdf["coef_interacao"].astype(float).values)
+        # pelo menos maioria absoluta com mesmo sinal
+        return True if (np.sum(signs > 0) == len(signs) or np.sum(signs < 0) == len(signs)) else False
+
+    # Flags por cov_type
+    if "modelo" in df.columns:
+        df["modelo"] = df["modelo"].astype(str)
+        out["HC1"] = _ok(df[df["modelo"].str.contains("_HC1", case=False, na=False)])
+        out["clusterUF"] = _ok(df[df["modelo"].str.contains("cluster", case=False, na=False)])
+        out["TOP5"] = _ok(df[df["modelo"].str.contains("^TOP5", case=False, na=False)])
+        out["log"] = _ok(df[df["comp_col"].astype(str).str.contains("log", case=False, na=False)]) if "comp_col" in df.columns else None
+        out["diff"] = _ok(df[df["comp_col"].astype(str).str.contains("diff", case=False, na=False)]) if "comp_col" in df.columns else None
+    return out
+
+def run_32_quadro41(base_csv_path="Base_VALIDADA_E_PRONTA__27A_prepared.csv", encoding="latin-1", sep=";"):
+    """
+    Constrói o Quadro 4.1 agregando:
+      - 27B: coef da interação Gestão×ΔAbstenção + efeitos principais (opcional)
+      - 27C: coef da interação Vantagem2016×ΔCompetição + efeitos principais
+      - 27D: sumário de robustez (HC1; clusterUF; TOP5; log/diff)
+    Saída: quadro_4_1_sintese.csv (sep=';', decimal=',')
+    """
+    outdir, base = _outbase(base_csv_path)
+
+    # Caminhos esperados
+    p27b_coef = os.path.join(outdir, f"tabela_coef_logit_interacaoA_{base}.csv")
+    p27b_ame  = os.path.join(outdir, f"tabela_AMEs_logit_interacaoA_{base}.csv")
+    p27c_coef = os.path.join(outdir, f"tabela_coef_ols_interacaoB_{base}.csv")
+    p27d_rob  = os.path.join(outdir, f"tabela_27D_sensibilidade_{base}.csv")
+
+    df27b = _read_csv_safe(p27b_coef)
+    df27c = _read_csv_safe(p27c_coef)
+
+    # 27D — robustez (apenas para Interação B)
+    rb = _robust_summary_27D(p27d_rob)
+    def _rb_str(d):
+        bits = []
+        for k in ["HC1", "clusterUF", "TOP5", "log", "diff"]:
+            v = d.get(k)
+            if v is True: bits.append(f"{k} ✓")
+            elif v is False: bits.append(f"{k} ×")
+        return "; ".join(bits) if bits else "—"
+
+    rows = []
+
+    # =========================
+    # 27B — Logit (Gestão × Δ Abstenção)
+    # =========================
+    if df27b is not None:
+        coef_int, p_int, name_int = _find_var_row(df27b, ["gest", "abst", ":"])
+        coef_g, p_g, name_g = _find_var_row(df27b, ["gest"])   # efeito principal (melhor esforço)
+        coef_a, p_a, name_a = _find_var_row(df27b, ["abst"])
+
+        # Interação A
+        rows.append({
+            "Mecanismo/H": "H5 — Névoa (moderação)",
+            "Variável/termo": "Gestão × Δ Abstenção",
+            "Direção esperada": "–",   # ajuste se necessário no texto
+            "Sinal encontrado": _sign_symbol(coef_int),
+            "Significância": _classif_sig(p_int),
+            "Robustez": "HC1",  # logit com HC1 (27B)
+            "Leitura em 1 linha": "Efeito da gestão varia com a abstenção; sinal conforme coeficiente.",
+            "Arquivo-base": os.path.basename(p27b_coef),
+        })
+        # Gestão (efeito principal)
+        if not (pd.isna(coef_g) and pd.isna(p_g)):
+            rows.append({
+                "Mecanismo/H": "—",
+                "Variável/termo": "Gestão (efeito principal)",
+                "Direção esperada": "—",
+                "Sinal encontrado": _sign_symbol(coef_g),
+                "Significância": _classif_sig(p_g),
+                "Robustez": "HC1",
+                "Leitura em 1 linha": "Efeito direto da gestão sobre a probabilidade de reeleição.",
+                "Arquivo-base": os.path.basename(p27b_coef),
+            })
+        # Δ Abstenção (efeito principal)
+        if not (pd.isna(coef_a) and pd.isna(p_a)):
+            rows.append({
+                "Mecanismo/H": "—",
+                "Variável/termo": "Δ Abstenção (efeito principal)",
+                "Direção esperada": "—",
+                "Sinal encontrado": _sign_symbol(coef_a),
+                "Significância": _classif_sig(p_a),
+                "Robustez": "HC1",
+                "Leitura em 1 linha": "Abstenção como proxy de névoa e seu efeito direto em reeleição.",
+                "Arquivo-base": os.path.basename(p27b_coef),
+            })
+
+    # =========================
+    # 27C — OLS (ΔVantagem ~ Vantagem2016 × ΔCompetição)
+    # =========================
+    if df27c is not None:
+        coef_int, p_int, name_int = _find_var_row(df27c, ["vant", "comp", ":"])
+        coef_v, p_v, name_v = _find_var_row(df27c, ["vantagem2016"])
+        coef_c, p_c, name_c = _find_var_row(df27c, ["comp"])
+
+        # Interação B
+        rows.append({
+            "Mecanismo/H": "—",
+            "Variável/termo": "Vantagem2016 × Δ Competição",
+            "Direção esperada": "–",
+            "Sinal encontrado": _sign_symbol(coef_int),
+            "Significância": _classif_sig(p_int),
+            "Robustez": _rb_str(rb),
+            "Leitura em 1 linha": "Competição altera o efeito da vantagem prévia sobre ΔVantagem.",
+            "Arquivo-base": os.path.basename(p27c_coef) + ("; " + os.path.basename(p27d_rob) if os.path.exists(p27d_rob) else ""),
+        })
+        # Vantagem2016 (efeito principal)
+        if not (pd.isna(coef_v) and pd.isna(p_v)):
+            rows.append({
+                "Mecanismo/H": "—",
+                "Variável/termo": "Vantagem2016 (efeito principal)",
+                "Direção esperada": "–",  # regressão à média
+                "Sinal encontrado": _sign_symbol(coef_v),
+                "Significância": _classif_sig(p_v),
+                "Robustez": "clusterUF/HC1",
+                "Leitura em 1 linha": "Regressão à média: maior vantagem prévia tende a reduzir ΔVantagem.",
+                "Arquivo-base": os.path.basename(p27c_coef),
+            })
+        # Δ Competição (efeito principal)
+        if not (pd.isna(coef_c) and pd.isna(p_c)):
+            rows.append({
+                "Mecanismo/H": "—",
+                "Variável/termo": "Δ Competição (efeito principal)",
+                "Direção esperada": "–",
+                "Sinal encontrado": _sign_symbol(coef_c),
+                "Significância": _classif_sig(p_c),
+                "Robustez": "clusterUF/HC1",
+                "Leitura em 1 linha": "Aumento de competição tende a reduzir a vantagem do incumbente.",
+                "Arquivo-base": os.path.basename(p27c_coef),
+            })
+
+    # Construção do DataFrame final
+    quadro = pd.DataFrame(rows, columns=[
+        "Mecanismo/H", "Variável/termo", "Direção esperada",
+        "Sinal encontrado", "Significância", "Robustez",
+        "Leitura em 1 linha", "Arquivo-base"
+    ])
+
+    out_csv = os.path.join(outdir, "quadro_4_1_sintese.csv")
+    # Garantir separador ';' e vírgula decimal para quaisquer números (aqui, quase tudo é texto)
+    quadro.to_csv(out_csv, index=False, encoding="utf-8", sep=";")
+    _print_paths("32", out_csv, extra={"linhas": quadro.shape[0]})
+    return out_csv
+
+# =================================================================================
+# MAIN
+# =================================================================================
 def main():
     parser = argparse.ArgumentParser(description="tese_master — Execução 27A–27D com nomes fixos")
     parser.add_argument("--base", type=str, default="Base_VALIDADA_E_PRONTA.csv", help="CSV de entrada")
@@ -524,6 +681,7 @@ def main():
     parser.add_argument("--run-27B", action="store_true", help="Rodar 27B (Logit interacaoA)")
     parser.add_argument("--run-27C", action="store_true", help="Rodar 27C (OLS interacaoB)")
     parser.add_argument("--run-27D", action="store_true", help="Rodar 27D (sensibilidade)")
+    parser.add_argument("--run-32", action="store_true", help="Rodar 32 (Quadro 4.1 síntese)")
 
     args = parser.parse_args()
     try:
@@ -535,9 +693,10 @@ def main():
             run_27C_interacaoB(base_csv_path=args.base, encoding=args.encoding, sep=args.sep)
         if args.run_27D:
             run_27D_sensibilidade(base_csv_path=args.base, encoding=args.encoding, sep=args.sep)
+        if args.run_32:
+            run_32_quadro41(base_csv_path=args.base, encoding=args.encoding, sep=args.sep)
     finally:
         _pause()
 
 if __name__ == "__main__":
     main()
-

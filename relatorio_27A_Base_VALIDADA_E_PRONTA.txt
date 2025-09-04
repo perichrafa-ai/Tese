@@ -1,0 +1,14 @@
+27A — Proxies (ΔAbstenção; ΔNEC_diff; ΔNEC_log) + Gestao_Index (centrada)
+Arquivo de entrada: Base_VALIDADA_E_PRONTA.csv
+Linhas: 139
+
+Resumo (N, média, dp, min, máx):
+ - tx_abstencao_2016: N=139, mean=0.170643, std=0.053908, min=0.050144, max=0.299217
+ - tx_abstencao_2020: N=139, mean=0.224995, std=0.055617, min=0.111545, max=0.382667
+ - delta_abstencao_pp: N=139, mean=5.435196, std=4.784017, min=-9.533368, max=18.757802
+ - delta_competicao_diff: N=139, mean=-0.105544, std=1.084066, min=-4.124948, max=2.905775
+ - delta_competicao_log: N=139, mean=-0.046875, std=0.372297, min=-1.018278, max=0.825688
+ - Gestao_Index: N=139, mean=0.756725, std=0.153652, min=0.267560, max=0.980436
+ - vantagem2016_c: N=139, mean=0.000000, std=10.705283, min=-26.151079, max=39.848921
+
+mask_27A TRUE: 139 de 139

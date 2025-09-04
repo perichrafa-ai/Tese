@@ -1,0 +1,7 @@
+Mecanismo/H;Variável/termo;Direção esperada;Sinal encontrado;Significância;Robustez;Leitura em 1 linha;Arquivo-base
+H5 — Névoa (moderação);Gestão × Δ Abstenção;–;–;n.s.;HC1;"Efeito da gestão varia com a abstenção; sinal conforme coeficiente.";tabela_coef_logit_interacaoA_Base_VALIDADA_E_PRONTA__27A_prepared.csv
+—;Gestão (efeito principal);—;+;n.s.;HC1;Efeito direto da gestão sobre a probabilidade de reeleição.;tabela_coef_logit_interacaoA_Base_VALIDADA_E_PRONTA__27A_prepared.csv
+—;Δ Abstenção (efeito principal);—;+;n.s.;HC1;Abstenção como proxy de névoa e seu efeito direto em reeleição.;tabela_coef_logit_interacaoA_Base_VALIDADA_E_PRONTA__27A_prepared.csv
+—;Vantagem2016 × Δ Competição;–;–;p<0,01;"HC1 ✓; clusterUF ✓; TOP5 ✓; log ✓; diff ✓";Competição altera o efeito da vantagem prévia sobre ΔVantagem.;"tabela_coef_ols_interacaoB_Base_VALIDADA_E_PRONTA__27A_prepared.csv; tabela_27D_sensibilidade_Base_VALIDADA_E_PRONTA__27A_prepared.csv"
+—;Vantagem2016 (efeito principal);–;–;n.s.;clusterUF/HC1;Regressão à média: maior vantagem prévia tende a reduzir ΔVantagem.;tabela_coef_ols_interacaoB_Base_VALIDADA_E_PRONTA__27A_prepared.csv
+—;Δ Competição (efeito principal);–;–;p<0,01;clusterUF/HC1;Aumento de competição tende a reduzir a vantagem do incumbente.;tabela_coef_ols_interacaoB_Base_VALIDADA_E_PRONTA__27A_prepared.csv

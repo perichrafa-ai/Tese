@@ -1,0 +1,5 @@
+variavel;coef;se;t_z;pvalue
+Intercept;-0,2797;1,3124;-0,2131;0,8330
+vantagem2016_c;-0,1012;0,1067;-0,9487;0,3519
+delta_competicao_log_c;-32,9069;4,6283;-7,1099;0,0000
+vantagem2016_c:delta_competicao_log_c;-0,8000;0,2631;-3,0409;0,0055

@@ -1,0 +1,13 @@
+variavel,coef,se,t,pvalue
+Intercept,0.034957826657479055,,,
+C(Regiao)[T.2 - Nordeste],0.03495782665747911,,,
+C(Regiao)[T.3 - Sudeste],0.0,,,
+C(Regiao)[T.4 - Sul],0.0,,,
+C(Regiao)[T.5 - Centro-Oeste],0.0,,,
+Vantagem2016_c,-0.2150283582168679,,,
+delta_comp_nec_logratio_c,0.014030895943217032,,,
+Vantagem2016_c:delta_comp_nec_logratio_c,-0.08630515130539972,,,
+NEC_2020,0.10011638627027745,,,
+LnPop,0.38453609323227017,,,
+PIB_PC,0.2558213754794321,,,
+Genero,0.0,,,

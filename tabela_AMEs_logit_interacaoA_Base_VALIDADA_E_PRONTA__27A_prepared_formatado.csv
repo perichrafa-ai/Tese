@@ -1,0 +1,4 @@
+Unnamed: 0;dy/dx;Std, Err,;z;Pr(>|z|);Conf, Int, Low;Cont, Int, Hi,
+Gestao_Index_c;0,0588;0,2729;0,2155;0,8294;-0,4761;0,5937
+delta_abstencao_pp_c;0,0119;0,0085;1,4067;0,1595;-0,0047;0,0285
+Gestao_Index_c:delta_abstencao_pp_c;-0,0397;0,0538;-0,7383;0,4603;-0,1451;0,0657
