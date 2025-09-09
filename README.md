@@ -10,7 +10,6 @@ Este repositório contém os dados e os scripts de análise utilizados para prod
 
 ## Conteúdo do Repositório
 
-* `tese_esboço.pdf`: O texto completo da tese de doutorado.
 * `Base_VALIDADA_E_PRONTA.csv`: A base de dados consolidada com N=139 municípios, contendo variáveis eleitorais, socioeconômicas e de gestão da pandemia.
 * `tese_master.py`: O script em Python utilizado para realizar todo o pré-processamento, engenharia de variáveis e análise estatística (descritiva e regressões).
 
