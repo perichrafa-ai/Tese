@@ -1,4 +1,5 @@
 Análise de Dados: Impacto da Gestão da Pandemia nas Eleições Municipais de 2020
+
 Este repositório contém um conjunto de scripts em Python para analisar o impacto da gestão da pandemia de COVID-19 nos resultados das reeleições municipais de 2020 no Brasil. O projeto foi estruturado em módulos independentes, cada um focado em uma etapa específica da análise, desde a estatística descritiva até a estimação de modelos de regressão complexos com interações.
 
 Principais Características
