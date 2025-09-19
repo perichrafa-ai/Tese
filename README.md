@@ -1,4 +1,4 @@
-# Tese — Crise, Gestão e Urnas · Pipeline Reprodutível
+# Tese — RESPONSABILIZAÇÃO ELEITORAL EM TEMPOS DE CRISE: OS LIMITES DO VOTO RETROSPECTIVO NA GESTÃO MUNICIPAL DA PANDEMIA DE COVID-19 A PARTIR DE CASOS BRASILEIROS
 
 [![Python](https://img.shields.io/badge/Python-3.10–3.12-informational)](https://www.python.org/)
 [![OS](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-ok)](#)
