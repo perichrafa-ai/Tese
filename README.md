@@ -1,30 +1,150 @@
-# Pipeline da Tese — Reprodutibilidade e Execução dos Scripts
+# Tese — Crise, Gestão e Urnas · Pipeline Reprodutível
 
-Este repositório contém **três scripts Python** que automatizam a leitura, o pré-processamento e as análises estatísticas dos dados da tese, além de gerar **tabelas e figuras** exatamente como descrito no trabalho. O repositório inclui também o CSV final utilizado nas análises.
+[![Python](https://img.shields.io/badge/Python-3.10–3.12-informational)](https://www.python.org/)
+[![OS](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-ok)](#)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Releases](https://img.shields.io/badge/Download-Releases-brightgreen)](./releases)
+[![Data](https://img.shields.io/badge/Dataset-CSV-important)](#)
+<!-- [![DOI](https://img.shields.io/badge/DOI-em_breve-lightgrey)](#) -->
+
+Este repositório contém **scripts Python** para rodar, de ponta a ponta, as análises automatizadas da tese
+**“Crise, Gestão e Urnas: O Impacto das Políticas Municipais Durante a Pandemia de COVID‑19 na Reeleição de Prefeitos”**.
+O pipeline lê o CSV validado, reconstrói variáveis quando necessário, roda modelos (Logit/OLS), calcula VIF, AMEs,
+e gera **tabelas e figuras** exatamente como especificado no texto.
 
 > **Arquivos relevantes**
 >
 > - `Base_VALIDADA_E_PRONTA.csv` — base integrada usada em todas as rotinas.
-> - `master parte 1.py` — _pipeline principal_ (descritivas + VIF + Logit + OLS + coefplot).
-> - `master parte 2.py` — _interações finais_ (robustez + AMEs + 2 gráficos; Tabelas 3.4a–d).
-> - `master parte 3.py` — _H3/H4 com autodetecção_ (construção dos índices; predições).
-> - `tese.pdf` — versão atual da tese, para referência metodológica e numérica.
-
-Os scripts criam e usam automaticamente uma **venv local** (`.venv`) e instalam as dependências **com versões fixas** via `requirements.txt`, garantindo resultados reprodutíveis em Windows, macOS e Linux.
+> - `master parte 1.py` — _pipeline principal_ (descritivas, VIF, Logit, OLS, coefplot).
+> - `master parte 2.py` — _interações finais_ (robustez + AMEs; Tabelas 3.4a–d + 2 figuras).
+> - `master parte 3.py` — _H3/H4_ (autodetecção de colunas, construção de índices, predições).
+> - `tese.pdf` — versão atual da tese (referência metodológica e numérica).
 
 ---
 
-## 1) Pré-requisitos
-
-- **Python**: 3.10–3.12 (Windows: o lançador `py` costuma apontar para a versão correta).
-- **Permissões**: nenhuma permissão administrativa é necessária; tudo roda no diretório do projeto.
-- **SO**: Windows, macOS ou Linux.
-
-> Se você já tem um `.venv` mas está quebrado, **apague a pasta `.venv/`** e rode novamente qualquer script — a venv é recriada.
+## Índice
+- [Requisitos](#requisitos)
+- [Instalação rápida](#instalação-rápida)
+- [Como executar](#como-executar)
+- [Parâmetros importantes](#parâmetros-importantes)
+- [Saídas (tabelas & figuras)](#saídas-tabelas--figuras)
+- [Reprodutibilidade e solução de problemas](#reprodutibilidade-e-solução-de-problemas)
+- [Estrutura de pastas](#estrutura-de-pastas)
+- [Referência metodológica](#referência-metodológica)
+- [Releases & versão dos scripts](#releases--versão-dos-scripts)
+- [Citação & licença](#citação--licença)
 
 ---
 
-## 2) Estrutura mínima de pastas
+## Requisitos
+
+- **Python** 3.10–3.12.
+- Nenhuma permissão administrativa; tudo roda no diretório do projeto.
+- Windows, macOS ou Linux.
+
+> Os scripts **1** e **3** criam/gerenciam automaticamente a **venv local** (`.venv`) e instalam dependências fixadas.
+> O script **2** assume que o ambiente já está pronto (execute **antes** o `master parte 1.py`).
+
+---
+
+## Instalação rápida
+
+> **Windows (PowerShell)** — recomendado usar o lançador `py`:
+```powershell
+# Rode o script 1 para bootstrap do ambiente (.venv + requirements)
+py ".\master parte 1.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal ","
+```
+
+> **macOS / Linux (bash/zsh)**:
+```bash
+python3 "./master parte 1.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal ","
+```
+
+Isso prepara a venv (`.venv/`) e baixa as dependências (pandas, numpy, statsmodels, matplotlib, seaborn, openpyxl, etc.).
+
+---
+
+## Como executar
+
+> **Pipeline principal (descritivas + VIF + Logit + OLS + coefplot)**
+```powershell
+# Windows
+py ".\master parte 1.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal ","
+```
+```bash
+# macOS / Linux
+python3 "./master parte 1.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal ","
+```
+
+> **Interações finais (robustez + AMEs; Tabelas 3.4a–d + 2 figuras)**
+```powershell
+py ".\master parte 2.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal ","
+```
+```bash
+python3 "./master parte 2.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal ","
+```
+
+> **H3/H4 (autodetecção + construção de índices + predições)**
+```powershell
+py ".\master parte 3.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal "," --ols-hc1
+```
+```bash
+python3 "./master parte 3.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal "," --ols-hc1
+```
+
+---
+
+## Parâmetros importantes
+
+Os scripts aceitam *flags* alinhadas ao formato brasileiro do CSV (encoding/sep/decimal) e mapeamento de colunas.
+Alguns parâmetros úteis:
+
+### Comuns
+- `--csv` caminho do CSV; `--outdir` pasta de saída; `--encoding` (padrão: `latin-1`); `--sep` (padrão: `;`);
+  `--decimal` (padrão: `,`); `--map` para renomear colunas específicas na leitura.
+
+**Exemplo de `--map`:**
+```bash
+--map Reeleicao="Reeleito (0/1)" --map Vantagem2016="Vantagem do Incumbente no primeiro turno 2016" --map DeltaIFDM_Emprego="Δ IFDM Emprego & Renda (2020-2016)"
+```
+
+### Específicos do `master parte 1.py`
+- `--no-xlsx` desativa exportação `.xlsx` (mantém `.csv`).
+- `--max-num-graphs-per-cat` (padrão: 3), `--top-k-categories` (se aplicável).
+- `--check-delta-bins` habilita inspeções adicionais.
+- `--ifdm_xmin`, `--ifdm_xmax`, `--ifdm_bw_adjust` controlam janelas e suavização de densidade para IFDM.
+
+### Específicos do `master parte 3.py`
+- `--ols-hc1` força OLS com erros‑padrão robustos HC1 (se preferir ao cluster por Estado).
+- `--upgrade` (quando disponível) atualiza _wheels_ estáveis dentro da venv.
+
+> O `master parte 2.py` não gerencia venv; execute o `master parte 1.py` primeiro.
+
+---
+
+## Saídas (tabelas & figuras)
+
+Tudo é salvo em `./output/` (criado automaticamente). Você encontrará:
+
+- **Tabelas (.csv e, quando disponível, .xlsx)**: VIF (3.0), Logit (3.1), OLS (3.2), Interações (3.4a–d) e sumários H3/H4.
+- **Figuras (.png)** sem títulos embutidos (apenas eixos/legenda): coefplot principal, gráficos de predição e AMEs.
+- Nomes de arquivos seguem padrão consistente, facilitando referência cruzada com a tese.
+
+> **Boas práticas**: manter o nome da base no nome do arquivo gerado quando pertinente (ex.: `coefplot_Base_VALIDADA_E_PRONTA.png`).
+
+---
+
+## Reprodutibilidade e solução de problemas
+
+- **Ambiente quebrado?** Apague `.venv/` e execute novamente o `master parte 1.py`.
+- **ImportError (pandas/statsmodels)?** Certifique‑se de estar usando `py` (Windows) ou `python3` (macOS/Linux) conforme acima.
+- **CSV fora do padrão BR?** Ajuste `--encoding`, `--sep` e `--decimal`.
+- **PowerShell**: o `master parte 3.py` ignora carets `^` acidentais herdados de comandos quebrados.
+- **Logs ruidosos do Matplotlib**: suprimidos nos scripts; gráficos exportados em PNG de alta resolução.
+
+---
+
+## Estrutura de pastas
 
 ```
 .
@@ -33,125 +153,35 @@ Os scripts criam e usam automaticamente uma **venv local** (`.venv`) e instalam 
 ├── master parte 2.py
 ├── master parte 3.py
 ├── tese.pdf
-└── output/              # será criado automaticamente (se não existir)
+└── output/
 ```
 
----
-
-## 3) Uso rápido (one‑liners por SO)
-
-> **Windows (PowerShell):**
-```powershell
-# Pipeline principal (descritivas + VIF + Logit + OLS + coefplot)
-py ".\master parte 1.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal ","
-
-# Interações finais (robustez + AMEs; gera Tabelas 3.4a–d e 2 gráficos)
-py ".\master parte 2.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal ","
-
-# H3/H4 com autodetecção (constrói índices e gera predições; opção HC1 no OLS)
-py ".\master parte 3.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal "," --ols-hc1
-```
-
-> **macOS / Linux (bash/zsh):**
-```bash
-# Troque 'python3' por 'python' se preferir
-python3 "./master parte 1.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal ","
-
-python3 "./master parte 2.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal ","
-
-python3 "./master parte 3.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal "," --ols-hc1
-```
-
-As **opções** `--encoding latin-1`, `--sep ";"` e `--decimal ","` refletem a convenção brasileira do CSV. Altere **somente** se o arquivo tiver outro formato.
+> Você pode usar outra estrutura, mas garanta que `--csv` e `--outdir` apontem para os caminhos corretos.
 
 ---
 
-## 4) O que cada script faz
+## Referência metodológica
 
-### `master parte 1.py` — *pipeline principal (master_v18)*
-- Gera **estatísticas descritivas**, **VIF** (Tabela 3.0), **Logit** de reeleição (Tabela 3.1, com erros‑padrão robustos HC1) e **OLS** para Δ Vantagem (Tabela 3.2).
-- Exporta **coefplot** do Modelo 6 (Figura 3.7).
-- Silencia logs ruidosos do Matplotlib (“categorical units”), evita `SettingWithCopyWarning` e **converte eixos numéricos** explicitamente para `float`.
-- **Parâmetros extras** úteis:
-  - `--no-xlsx` — desativa exportação `.xlsx` (mantém `.csv`).
-  - `--max-num-graphs-per-cat` (padrão: 3) e `--top-k-categories` (padrão: 30) — controlam seleção de categorias para gráficos descritivos.
-  - `--check-delta-bins` — inspeções adicionais sobre deltas.
-  - `--ifdm_xmin/--ifdm_xmax/--ifdm_bw_adjust` — ajustes para curvas de densidade do IFDM.
-
-### `master parte 2.py` — *interações finais (master_2_v5)*
-- Foca nas **interações finais** com **robustez** e **efeitos marginais médios (AMEs)**.
-- **Corrige** o erro `DiscreteMargins` (usa `summary_frame()` internamente).
-- **Autodetecta** colunas a partir de _keywords_ do CSV e constrói as variáveis necessárias.
-- Produz **Tabelas 3.4a–3.4d** e **dois gráficos** finais, sem títulos embutidos (apenas eixos/legenda).
-
-### `master parte 3.py` — *H3/H4 + índices internos (master_h3_h4_v3)*
-- **Descobre** automaticamente os nomes de colunas no CSV (ex.: `"Estado"` em vez de `"UF"`, `"reeleito"`, `"delta_vantagem (2020-2016)"`, `"População"`/`"ln_pop"`).
-- **Constrói os índices de Gestão e Severidade** a partir das variáveis presentes (máscara, comércio, leitos, tendas, hospital, testagem; sobrecarga/transferência/24h).
-- **Tolerante a PowerShell** (remove carets `^` errôneos quando o comando é quebrado em várias linhas).
-- Saídas: **quatro sumários/tabelas** (H3/H4 × Logit/OLS) e **figuras de predição**.
-- **Opção**: `--ols-hc1` para OLS com HC1 (padrão: cluster por Estado, se disponível).
+A especificação de variáveis, modelos, hipóteses e a lista canônica de tabelas/figuras está em **`tese.pdf`** (raiz do projeto).
 
 ---
 
-## 5) Convenções do CSV e mapeamento de colunas
+## Releases & versão dos scripts
 
-Os scripts tentam **autodetectar** os nomes de colunas por _keywords_. Caso sua coluna tenha um nome diferente, use `--map` para **forçar o mapeamento**:
-
-```bash
-# Exemplos:
---map Reeleicao="Reeleito (0/1)" --map Vantagem2016="Vantagem do Incumbente no primeiro turno 2016" --map DeltaIFDM_Emprego="Δ IFDM Emprego & Renda (2020-2016)" --map DeltaIFDM_Saude="IFDM Saúde – variação (2016-2020)"
-```
-
-> Dicas importantes:
-> - **Reeleição**: valores binários são interpretados de maneira robusta (`Sim/Não`, `1/0`, `True/False` etc.).
-> - **Abstenção 2016/2020** e **NEC 2016/2020**: usados para calcular Δ Abstenção (p.p.) e Δ NEC (diff/log).
-> - **Separadores**: o leitor reconhece **ponto** como separador de milhar e **vírgula** como separador decimal quando `--decimal ","`.
-> - **População**: se não houver `ln_pop`, ele é **reconstruído** a partir de `População`.
+Use a aba **[Releases](./releases)** para publicar pacotes versionados do `output/` (tabelas e figuras) e _snapshots_ de código.
+Recomendação de versionamento: `vMAJOR.MINOR.PATCH` alinhado aos cabeçalhos internos dos scripts
+(p.ex., `master_v18`, `master_2_v5`, `master_h3_h4_v3`).
 
 ---
 
-## 6) Saídas geradas
+## Citação & licença
 
-Tudo é salvo em `./output/` (criado automaticamente). Você encontrará:
+Se usar estes scripts ou resultados, cite a tese e este repositório. Inclua um arquivo `CITATION.cff` na raiz (opcional).
+A licença sugerida é **MIT** — ajuste se preferir outra (CC BY‑NC, por exemplo).
 
-- **Tabelas (.csv e, quando possível, .xlsx)** de VIF (3.0), Logit (3.1), OLS (3.2) e interações (3.4a–d), além de sumários para H3/H4.
-- **Figuras (.png)** sem títulos embutidos (apenas eixos/legenda), incluindo o **coefplot** principal e **gráficos de predição/AMEs**.
-- Os arquivos são numerados de forma consistente para facilitar a referência cruzada com a tese.
-
----
-
-## 7) Dicas de reprodutibilidade e solução de problemas
-
-- **Venv quebrada?** Apague `.venv/` e rode de novo qualquer script — a venv é recriada e os _wheels_ estáveis são reinstalados.
-- **Erro de `pandas`/`statsmodels` não encontrado?** Os scripts chamam `pip` dentro da venv. Certifique-se de usar `py` (Windows) ou `python3` (macOS/Linux).
-- **CSV com formato diferente?** Ajuste `--encoding`, `--sep` e `--decimal` de acordo com o arquivo.
-- **PowerShell e `^`**: o script `master parte 3.py` ignora carets `^` acidentalmente colados ao comando.
-- **Logs do Matplotlib**: silenciados automaticamente (`mpl.set_loglevel("warning")`).
+> **Como citar (exemplo):** _Perich, R. (2025). Crise, Gestão e Urnas: ... [repositório GitHub]._
 
 ---
 
-## 8) Referência metodológica
-
-A especificação dos modelos, variáveis e hipóteses, bem como a lista canônica de tabelas e figuras, encontra-se detalhada em `tese.pdf` (na raiz do repositório).
-
----
-
-## 9) Licença e citação
-
-- **Licença**: defina uma licença na raiz do repositório (`LICENSE`). Sugerido: MIT ou CC BY‑NC, conforme sua preferência.
-- **Como citar**: inclua a referência da tese e, se houver, DOI/handle do repositório de dados.
-
----
-
-## 10) Resumo dos scripts (visão rápida)
-
-| Script              | Foco principal                                   | Saídas‑chave                                   | Extras |
-|---------------------|---------------------------------------------------|------------------------------------------------|--------|
-| `master parte 1.py` | Descritivas, VIF, Logit (Reeleição), OLS (ΔV)    | Tabelas 3.0–3.2; Figura 3.7 (coefplot)         | Flags de gráficos e IFDM |
-| `master parte 2.py` | Interações finais + AMEs + robustez               | Tabelas 3.4a–3.4d; 2 gráficos finais           | Corrige `DiscreteMargins` |
-| `master parte 3.py` | H3/H4 com autodetecção + construção de índices    | 4 sumários (H3/H4 × Logit/OLS); predições     | `--ols-hc1`; tolerante a `^` |
-
----
-
-> **Reprodutibilidade não é mágica, é método**: use os _one‑liners_, mantenha o CSV no padrão BR (`latin-1`, `;`, `,`), e registre tudo em `output/`. Assim, qualquer pessoa consegue chegar às mesmas tabelas e figuras da tese.
-
+> **Resumo**: execute o **script 1** para preparar ambiente e gerar as saídas básicas, rode o **script 2** para as interações finais,
+e finalize com o **script 3** para H3/H4 com autodetecção e predições. Todas as tabelas e figuras aparecem em `output/`.
