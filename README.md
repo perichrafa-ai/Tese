@@ -1,127 +1,157 @@
-Análise de Dados: Impacto da Gestão da Pandemia nas Eleições Municipais de 2020
+# Pipeline da Tese — Reprodutibilidade e Execução dos Scripts
 
-Este repositório contém um conjunto de scripts em Python para analisar o impacto da gestão da pandemia de COVID-19 nos resultados das reeleições municipais de 2020 no Brasil. O projeto foi estruturado em módulos independentes, cada um focado em uma etapa específica da análise, desde a estatística descritiva até a estimação de modelos de regressão complexos com interações.
+Este repositório contém **três scripts Python** que automatizam a leitura, o pré-processamento e as análises estatísticas dos dados da tese, além de gerar **tabelas e figuras** exatamente como descrito no trabalho. O repositório inclui também o CSV final utilizado nas análises.
 
-Principais Características
-Pipeline Automatizado: Cada script é uma ferramenta "tudo-em-um" que executa uma análise completa com um único comando.
+> **Arquivos relevantes**
+>
+> - `Base_VALIDADA_E_PRONTA.csv` — base integrada usada em todas as rotinas.
+> - `master parte 1.py` — _pipeline principal_ (descritivas + VIF + Logit + OLS + coefplot).
+> - `master parte 2.py` — _interações finais_ (robustez + AMEs + 2 gráficos; Tabelas 3.4a–d).
+> - `master parte 3.py` — _H3/H4 com autodetecção_ (construção dos índices; predições).
+> - `tese.pdf` — versão atual da tese, para referência metodológica e numérica.
 
-Reprodutibilidade Garantida: Os scripts gerenciam automaticamente seu próprio ambiente virtual (.venv) e instalam as dependências exatas listadas no requirements.txt. Não é necessária nenhuma configuração manual.
+Os scripts criam e usam automaticamente uma **venv local** (`.venv`) e instalam as dependências **com versões fixas** via `requirements.txt`, garantindo resultados reprodutíveis em Windows, macOS e Linux.
 
-Detecção Inteligente de Colunas: Os scripts são robustos a pequenas variações nos nomes das colunas do seu arquivo de dados, tentando encontrar as variáveis necessárias por meio de palavras-chave.
+---
 
-Saídas Organizadas: Todos os resultados (tabelas em .csv e .xlsx, e gráficos em .png) são salvos automaticamente em um diretório de saída (./output/).
+## 1) Pré-requisitos
 
-Pré-requisitos
-Python 3.7 ou superior instalado em seu sistema.
+- **Python**: 3.10–3.12 (Windows: o lançador `py` costuma apontar para a versão correta).
+- **Permissões**: nenhuma permissão administrativa é necessária; tudo roda no diretório do projeto.
+- **SO**: Windows, macOS ou Linux.
 
-O arquivo de dados Base_VALIDADA_E_PRONTA.csv localizado no mesmo diretório dos scripts.
+> Se você já tem um `.venv` mas está quebrado, **apague a pasta `.venv/`** e rode novamente qualquer script — a venv é recriada.
 
-Como Executar as Análises
-Não é preciso ativar o ambiente virtual ou instalar pacotes manualmente. Basta executar o script desejado a partir do seu terminal, e ele cuidará de todo o processo de configuração antes de iniciar a análise.
+---
 
-Parte 1: Análise Descritiva e Modelos Principais
-Este é o script principal da análise. Ele gera um panorama completo dos dados, incluindo estatísticas descritivas, distribuições de frequência, e executa os modelos de regressão centrais da pesquisa (Logit e OLS), além de um diagnóstico de multicolinearidade (VIF).
+## 2) Estrutura mínima de pastas
 
-Script: master parte 1.py
+```
+.
+├── Base_VALIDADA_E_PRONTA.csv
+├── master parte 1.py
+├── master parte 2.py
+├── master parte 3.py
+├── tese.pdf
+└── output/              # será criado automaticamente (se não existir)
+```
 
-Para executar:
+---
 
-Windows (PowerShell / CMD)
+## 3) Uso rápido (one‑liners por SO)
 
-py "master parte 1.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output"
+> **Windows (PowerShell):**
+```powershell
+# Pipeline principal (descritivas + VIF + Logit + OLS + coefplot)
+py ".\master parte 1.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal ","
 
-macOS / Linux
+# Interações finais (robustez + AMEs; gera Tabelas 3.4a–d e 2 gráficos)
+py ".\master parte 2.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal ","
 
-python3 "master parte 1.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output"
+# H3/H4 com autodetecção (constrói índices e gera predições; opção HC1 no OLS)
+py ".\master parte 3.py" --csv ".\Base_VALIDADA_E_PRONTA.csv" --outdir ".\output" --encoding latin-1 --sep ";" --decimal "," --ols-hc1
+```
 
-Principais Saídas Geradas:
+> **macOS / Linux (bash/zsh):**
+```bash
+# Troque 'python3' por 'python' se preferir
+python3 "./master parte 1.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal ","
 
-Relatórios Descritivos: Tabelas e gráficos de frequência para todas as variáveis.
+python3 "./master parte 2.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal ","
 
-Tabela_3_0_Diagnostico_Multicolinearidade_VIF.csv: Teste de VIF para as variáveis independentes.
+python3 "./master parte 3.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output" --encoding latin-1 --sep ";" --decimal "," --ols-hc1
+```
 
-Tabela_3_1_Determinantes_Reeleicao_Logit.csv: Resultados dos modelos Logit para a probabilidade de reeleição.
+As **opções** `--encoding latin-1`, `--sep ";"` e `--decimal ","` refletem a convenção brasileira do CSV. Altere **somente** se o arquivo tiver outro formato.
 
-Tabela_3_2_Determinantes_DeltaVantagem_OLS.csv: Resultados dos modelos OLS para a variação na vantagem eleitoral.
+---
 
-fig_3_7_coeficientes_ols_completo.png: Gráfico de coeficientes (coefplot) do modelo OLS completo.
+## 4) O que cada script faz
 
-Parte 2: Análise de Interações (Gestão vs. Abstenção e Vantagem vs. Competição)
-Este script foca em testar o efeito de moderação de duas interações específicas:
+### `master parte 1.py` — *pipeline principal (master_v18)*
+- Gera **estatísticas descritivas**, **VIF** (Tabela 3.0), **Logit** de reeleição (Tabela 3.1, com erros‑padrão robustos HC1) e **OLS** para Δ Vantagem (Tabela 3.2).
+- Exporta **coefplot** do Modelo 6 (Figura 3.7).
+- Silencia logs ruidosos do Matplotlib (“categorical units”), evita `SettingWithCopyWarning` e **converte eixos numéricos** explicitamente para `float`.
+- **Parâmetros extras** úteis:
+  - `--no-xlsx` — desativa exportação `.xlsx` (mantém `.csv`).
+  - `--max-num-graphs-per-cat` (padrão: 3) e `--top-k-categories` (padrão: 30) — controlam seleção de categorias para gráficos descritivos.
+  - `--check-delta-bins` — inspeções adicionais sobre deltas.
+  - `--ifdm_xmin/--ifdm_xmax/--ifdm_bw_adjust` — ajustes para curvas de densidade do IFDM.
 
-Como o aumento da abstenção (ΔAbstenção) modera o efeito do Índice de Gestão na probabilidade de reeleição.
+### `master parte 2.py` — *interações finais (master_2_v5)*
+- Foca nas **interações finais** com **robustez** e **efeitos marginais médios (AMEs)**.
+- **Corrige** o erro `DiscreteMargins` (usa `summary_frame()` internamente).
+- **Autodetecta** colunas a partir de _keywords_ do CSV e constrói as variáveis necessárias.
+- Produz **Tabelas 3.4a–3.4d** e **dois gráficos** finais, sem títulos embutidos (apenas eixos/legenda).
 
-Como a vantagem eleitoral de 2016 (Vantagem2016) modera o efeito da variação na competição (ΔNEC) sobre a performance eleitoral em 2020.
+### `master parte 3.py` — *H3/H4 + índices internos (master_h3_h4_v3)*
+- **Descobre** automaticamente os nomes de colunas no CSV (ex.: `"Estado"` em vez de `"UF"`, `"reeleito"`, `"delta_vantagem (2020-2016)"`, `"População"`/`"ln_pop"`).
+- **Constrói os índices de Gestão e Severidade** a partir das variáveis presentes (máscara, comércio, leitos, tendas, hospital, testagem; sobrecarga/transferência/24h).
+- **Tolerante a PowerShell** (remove carets `^` errôneos quando o comando é quebrado em várias linhas).
+- Saídas: **quatro sumários/tabelas** (H3/H4 × Logit/OLS) e **figuras de predição**.
+- **Opção**: `--ols-hc1` para OLS com HC1 (padrão: cluster por Estado, se disponível).
 
-Script: master parte 2.py
+---
 
-Para executar:
+## 5) Convenções do CSV e mapeamento de colunas
 
-Windows (PowerShell / CMD)
+Os scripts tentam **autodetectar** os nomes de colunas por _keywords_. Caso sua coluna tenha um nome diferente, use `--map` para **forçar o mapeamento**:
 
-py "master parte 2.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output"
+```bash
+# Exemplos:
+--map Reeleicao="Reeleito (0/1)" --map Vantagem2016="Vantagem do Incumbente no primeiro turno 2016" --map DeltaIFDM_Emprego="Δ IFDM Emprego & Renda (2020-2016)" --map DeltaIFDM_Saude="IFDM Saúde – variação (2016-2020)"
+```
 
-macOS / Linux
+> Dicas importantes:
+> - **Reeleição**: valores binários são interpretados de maneira robusta (`Sim/Não`, `1/0`, `True/False` etc.).
+> - **Abstenção 2016/2020** e **NEC 2016/2020**: usados para calcular Δ Abstenção (p.p.) e Δ NEC (diff/log).
+> - **Separadores**: o leitor reconhece **ponto** como separador de milhar e **vírgula** como separador decimal quando `--decimal ","`.
+> - **População**: se não houver `ln_pop`, ele é **reconstruído** a partir de `População`.
 
-python3 "master parte 2.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output"
+---
 
-Principais Saídas Geradas:
+## 6) Saídas geradas
 
-Tabela_3_4a_logit_gestao_x_deltaabst.csv: Coeficientes do modelo Logit com interação.
+Tudo é salvo em `./output/` (criado automaticamente). Você encontrará:
 
-Tabela_3_4b_marginais_logit_gestao_x_deltaabst.csv: Efeitos marginais médios (AMEs) do modelo.
+- **Tabelas (.csv e, quando possível, .xlsx)** de VIF (3.0), Logit (3.1), OLS (3.2) e interações (3.4a–d), além de sumários para H3/H4.
+- **Figuras (.png)** sem títulos embutidos (apenas eixos/legenda), incluindo o **coefplot** principal e **gráficos de predição/AMEs**.
+- Os arquivos são numerados de forma consistente para facilitar a referência cruzada com a tese.
 
-Tabela_3_4c_ols_v2016_x_dnec_log.csv: Coeficientes do modelo OLS com interação.
+---
 
-Tabela_3_4d_robustez_competicao.csv: Testes de robustez para o modelo OLS.
+## 7) Dicas de reprodutibilidade e solução de problemas
 
-fig_pred_logit_gestao_x_deltaabst.png: Gráfico do efeito predito da interação Gestão × ΔAbstenção.
+- **Venv quebrada?** Apague `.venv/` e rode de novo qualquer script — a venv é recriada e os _wheels_ estáveis são reinstalados.
+- **Erro de `pandas`/`statsmodels` não encontrado?** Os scripts chamam `pip` dentro da venv. Certifique-se de usar `py` (Windows) ou `python3` (macOS/Linux).
+- **CSV com formato diferente?** Ajuste `--encoding`, `--sep` e `--decimal` de acordo com o arquivo.
+- **PowerShell e `^`**: o script `master parte 3.py` ignora carets `^` acidentalmente colados ao comando.
+- **Logs do Matplotlib**: silenciados automaticamente (`mpl.set_loglevel("warning")`).
 
-fig_pred_ols_v2016_x_dnec_log.png: Gráfico do efeito predito da interação Vantagem × ΔCompetição.
+---
 
-Parte 3: Teste das Hipóteses H3 e H4 (Moderação por Porte e Vantagem Prévia)
-Este script foi desenvolvido para testar as hipóteses H3 e H4, que investigam como os efeitos da Gestão e da Severidade da crise são moderados por:
+## 8) Referência metodológica
 
-H3: O porte do município (medido pelo ln(População)).
+A especificação dos modelos, variáveis e hipóteses, bem como a lista canônica de tabelas e figuras, encontra-se detalhada em `tese.pdf` (na raiz do repositório).
 
-H4: A vantagem eleitoral do incumbente em 2016 (Vantagem2016).
+---
 
-Script: master parte 3.py
+## 9) Licença e citação
 
-Para executar:
+- **Licença**: defina uma licença na raiz do repositório (`LICENSE`). Sugerido: MIT ou CC BY‑NC, conforme sua preferência.
+- **Como citar**: inclua a referência da tese e, se houver, DOI/handle do repositório de dados.
 
-Windows (PowerShell / CMD)
+---
 
-py "master parte 3.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output"
+## 10) Resumo dos scripts (visão rápida)
 
-macOS / Linux
+| Script              | Foco principal                                   | Saídas‑chave                                   | Extras |
+|---------------------|---------------------------------------------------|------------------------------------------------|--------|
+| `master parte 1.py` | Descritivas, VIF, Logit (Reeleição), OLS (ΔV)    | Tabelas 3.0–3.2; Figura 3.7 (coefplot)         | Flags de gráficos e IFDM |
+| `master parte 2.py` | Interações finais + AMEs + robustez               | Tabelas 3.4a–3.4d; 2 gráficos finais           | Corrige `DiscreteMargins` |
+| `master parte 3.py` | H3/H4 com autodetecção + construção de índices    | 4 sumários (H3/H4 × Logit/OLS); predições     | `--ols-hc1`; tolerante a `^` |
 
-python3 "master parte 3.py" --csv "./Base_VALIDADA_E_PRONTA.csv" --outdir "./output"
+---
 
-Principais Saídas Geradas:
+> **Reprodutibilidade não é mágica, é método**: use os _one‑liners_, mantenha o CSV no padrão BR (`latin-1`, `;`, `,`), e registre tudo em `output/`. Assim, qualquer pessoa consegue chegar às mesmas tabelas e figuras da tese.
 
-Sumários de regressão (.txt) e tabelas de coeficientes (.csv) para cada hipótese e variável dependente (Logit e OLS).
-
-Gráficos de predição para visualizar os efeitos de moderação, como H3_logit_lnpop.png e H4_logit_v2016.png.
-
-H3H4_relatorio_componentes.txt: Um relatório de transparência que lista quais colunas do CSV foram usadas para construir os índices de Gestão e Severidade.
-
-Customização e Solução de Problemas
-Parâmetros do CSV
-Se seu arquivo CSV utiliza um formato diferente do padrão brasileiro, você pode ajustar a leitura com os seguintes parâmetros:
-
---encoding: Codificação do arquivo (padrão: latin-1).
-
---sep: Separador de colunas (padrão: ;).
-
---decimal: Separador decimal (padrão: ,).
-
-Mapeamento Manual de Colunas
-Se um script não conseguir encontrar uma coluna essencial, você pode especificá-la manualmente com o parâmetro --map. Este argumento pode ser usado várias vezes.
-
-Exemplo:
-
-py "master parte 1.py" --csv "dados.csv" --map Reeleicao="Reeleito (S/N)" --map LnPop="log_pop_2019"
-
-Solução de Problemas
-Caso encontre algum erro inesperado durante a execução, a solução mais simples geralmente é deletar a pasta .venv que foi criada no diretório. Ao rodar o script novamente, ele irá recriar o ambiente virtual e reinstalar as dependências do zero, resolvendo a maioria dos problemas.
