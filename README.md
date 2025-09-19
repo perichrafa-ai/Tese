@@ -1,4 +1,4 @@
-# Tese — RESPONSABILIZAÇÃO ELEITORAL EM TEMPOS DE CRISE: OS LIMITES DO VOTO RETROSPECTIVO NA GESTÃO MUNICIPAL DA PANDEMIA DE COVID-19 A PARTIR DE CASOS BRASILEIROS
+# Tese — Responsabilização eleitoral em tempos de crise: os limites do voto retrospectivo na gestão municipal da pandemia de Covid-19 a partir de casos brasileiros
 
 [![Python](https://img.shields.io/badge/Python-3.10–3.12-informational)](https://www.python.org/)
 [![OS](https://img.shields.io/badge/Windows%20%7C%20macOS%20%7C%20Linux-ok)](#)
