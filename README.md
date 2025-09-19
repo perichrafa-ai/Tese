@@ -8,7 +8,7 @@
 <!-- [![DOI](https://img.shields.io/badge/DOI-em_breve-lightgrey)](#) -->
 
 Este repositório contém **scripts Python** para rodar, de ponta a ponta, as análises automatizadas da tese
-**“Crise, Gestão e Urnas: O Impacto das Políticas Municipais Durante a Pandemia de COVID‑19 na Reeleição de Prefeitos”**.
+**“RESPONSABILIZAÇÃO ELEITORAL EM TEMPOS DE CRISE: OS LIMITES DO VOTO RETROSPECTIVO NA GESTÃO MUNICIPAL DA PANDEMIA DE COVID-19 A PARTIR DE CASOS BRASILEIROS”**.
 O pipeline lê o CSV validado, reconstrói variáveis quando necessário, roda modelos (Logit/OLS), calcula VIF, AMEs,
 e gera **tabelas e figuras** exatamente como especificado no texto.
 
@@ -174,12 +174,7 @@ Recomendação de versionamento: `vMAJOR.MINOR.PATCH` alinhado aos cabeçalhos i
 
 ---
 
-## Citação & licença
 
-Se usar estes scripts ou resultados, cite a tese e este repositório. Inclua um arquivo `CITATION.cff` na raiz (opcional).
-A licença sugerida é **MIT** — ajuste se preferir outra (CC BY‑NC, por exemplo).
-
-> **Como citar (exemplo):** _Perich, R. (2025). Crise, Gestão e Urnas: ... [repositório GitHub]._
 
 ---
 
